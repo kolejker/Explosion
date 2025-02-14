@@ -1,42 +1,63 @@
 #include "ribbonbar.h"
-
 #include <QStyle>
+#include <QPushButton>
+#include <QLabel>
 
-RibbonBar::RibbonBar(QWidget * parent): QWidget(parent) {
-  setFixedHeight(180);
-  QVBoxLayout * mainLayout = new QVBoxLayout(this);
-  mainLayout -> setContentsMargins(0, 0, 0, 0);
-  mainLayout -> setSpacing(0);
+RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
+    setFixedHeight(180);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
-  QTabWidget * tabWidget = new QTabWidget(this);
-  tabWidget -> setTabPosition(QTabWidget::North);
-  tabWidget -> addTab(createTab("File"), "File");
-  tabWidget -> addTab(createTab("Computer"), "Computer");
-  tabWidget -> addTab(createTab("View"), "View");
+    QTabWidget *tabWidget = new QTabWidget(this);
+    tabWidget->setTabPosition(QTabWidget::North);
+    tabWidget->addTab(createFileTab(), "File");
+    tabWidget->addTab(createComputerTab(), "Computer");
+    tabWidget->addTab(createViewTab(), "View");
 
-  QToolBar * toolbar = new QToolBar("Navigation");
-  toolbar -> setMovable(false);
+    QToolBar *toolbar = new QToolBar("Navigation");
+    toolbar->setMovable(false);
+    toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowBack), "Back");
+    toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), "Forward");
+    toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), "Up");
 
-  toolbar -> addAction(style() -> standardIcon(QStyle::SP_ArrowBack), "Back");
-  toolbar -> addAction(style() -> standardIcon(QStyle::SP_ArrowForward), "Forward");
-  toolbar -> addAction(style() -> standardIcon(QStyle::SP_ArrowUp), "Up");
-
-  mainLayout -> addWidget(tabWidget);
-  mainLayout -> addWidget(toolbar);
-
-  setLayout(mainLayout);
+    mainLayout->addWidget(tabWidget);
+    mainLayout->addWidget(toolbar);
+    setLayout(mainLayout);
 }
 
-QWidget * RibbonBar::createTab(const QString & name) {
-  QWidget * tab = new QWidget;
-  QVBoxLayout * layout = new QVBoxLayout(tab);
+QWidget *RibbonBar::createFileTab() {
+    QWidget *tab = new QWidget;
+    QVBoxLayout *layout = new QVBoxLayout(tab);
+    
+    QToolBar *toolbar = new QToolBar("File");
+    toolbar->addAction("File");
+    
+    layout->addWidget(toolbar);
+    tab->setLayout(layout);
+    return tab;
+}
 
-  QToolBar * toolbar = new QToolBar(name);
-  toolbar -> addAction("Action 1");
-  toolbar -> addAction("Action 2");
-  toolbar -> addAction("Action 3");
+QWidget *RibbonBar::createComputerTab() {
+    QWidget *tab = new QWidget;
+    QVBoxLayout *layout = new QVBoxLayout(tab);
+    
+    QToolBar *toolbar = new QToolBar("Computer");
+    toolbar->addAction("Computer");
+    
+    layout->addWidget(toolbar);
+    tab->setLayout(layout);
+    return tab;
+}
 
-  layout -> addWidget(toolbar);
-  tab -> setLayout(layout);
-  return tab;
+QWidget *RibbonBar::createViewTab() {
+    QWidget *tab = new QWidget;
+    QVBoxLayout *layout = new QVBoxLayout(tab);
+    
+    QToolBar *toolbar = new QToolBar("View");
+    toolbar->addAction("View");
+
+    layout->addWidget(toolbar);
+    tab->setLayout(layout);
+    return tab;
 }

@@ -178,9 +178,21 @@ class Explosion: public QMainWindow {
     fileModel -> setRootPath(QDir::homePath());
     fileModel -> setFilter(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files);
 
+connect(contentView, &QListView::doubleClicked, this, &Explosion::onItemActivated);
+
     contentView -> setModel(fileModel);
     contentView -> setRootIndex(fileModel -> index(QDir::homePath()));
   }
+
+void onItemActivated(const QModelIndex &index) {
+    if (!index.isValid()) return;
+
+    QFileInfo fileInfo = fileModel->fileInfo(index);
+    if (fileInfo.isDir()) {
+        contentView->setRootIndex(fileModel->setRootPath(fileInfo.absoluteFilePath()));
+        statusBar()->showMessage("Location: " + fileInfo.absoluteFilePath());
+    }
+}
 
   private slots:
     void onNavigationSelection(const QItemSelection & selected,

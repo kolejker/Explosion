@@ -12,7 +12,9 @@ public:
     explicit RibbonBar(QWidget *parent = nullptr);
     
 private:
-    QWidget *createTab(const QString &name);
+    QWidget *createFileTab();
+    QWidget *createComputerTab();
+    QWidget *createViewTab();
 };
 
-#endif 
+#endif
