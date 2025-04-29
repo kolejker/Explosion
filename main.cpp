@@ -1,46 +1,26 @@
 #include <QApplication>
-
 #include <QMainWindow>
-
 #include <QTreeView>
-
 #include <QListView>
-
 #include <QFileSystemModel>
-
 #include <QWheelEvent>
-
 #include <QSplitter>
-
 #include <QVBoxLayout>
-
 #include <QHBoxLayout>
-
 #include <QWidget>
-
 #include <QHeaderView>
-
 #include <QMenuBar>
-
 #include <QToolBar>
-
 #include <QStatusBar>
-
 #include <QFileDialog>
-
 #include <QStandardItemModel>
-
 #include <QStyle>
-
 #include <QFileIconProvider>
-
 #include <QStorageInfo>
-
 #include <QStack>
-
 #include <QDesktopServices>
-
 #include <QUrl>
+#include <QLineEdit>
 
 #include "ribbonbar.h"
 
@@ -53,6 +33,7 @@ public:
         setupFileSystem();
         setupQuickAccess();
         currentPath = QDir::homePath();
+        updateAddressBar(currentPath);
     }
 
 private:
@@ -64,13 +45,18 @@ private:
     QStack<QString> backStack;
     QStack<QString> forwardStack;
     QString currentPath;
+    RibbonBar* ribbon;
+    QLineEdit* addressBar;
 
     void setupUI() {
         QWidget* centralWidget = new QWidget(this);
         QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
         mainLayout->setContentsMargins(0, 0, 0, 0);
 
-        RibbonBar* ribbon = new RibbonBar(this);
+        ribbon = new RibbonBar(this);
+        addressBar = ribbon->getAddressBar();
+        connect(ribbon, &RibbonBar::addressBarNavigated, this, &Explosion::addressBarNavigateRequested);
+        
         mainLayout->addWidget(ribbon);
 
         QSplitter* splitter = new QSplitter(Qt::Horizontal);
@@ -192,6 +178,12 @@ private:
         contentView->setRootIndex(fileModel->index(QDir::homePath()));
     }
 
+    void updateAddressBar(const QString& path) {
+        if (addressBar) {
+            addressBar->setText(path);
+        }
+    }
+
     void navigateToPath(const QString& path, bool addToHistory = true) {
         if (!QFileInfo::exists(path)) return;
         
@@ -203,6 +195,7 @@ private:
         currentPath = path;
         contentView->setRootIndex(fileModel->setRootPath(path));
         statusBar()->showMessage("Location: " + path);
+        updateAddressBar(path);
 
         QToolBar* navToolBar = findChild<QToolBar*>();
         if (navToolBar) {
@@ -238,6 +231,10 @@ private:
     }
 
 private slots:
+    void addressBarNavigateRequested(const QString& path) {
+        navigateToPath(path);
+    }
+
     void onNavigationSelection(const QItemSelection& selected,
         const QItemSelection&) {
         if (selected.indexes().isEmpty())

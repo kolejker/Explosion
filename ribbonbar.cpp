@@ -20,10 +20,23 @@ RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
     toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowBack), "Back");
     toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), "Forward");
     toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), "Up");
+    
+    addressBar = new QLineEdit();
+    addressBar->setMinimumWidth(300);
+    addressBar->setClearButtonEnabled(true);
+    addressBar->setPlaceholderText("Address");
+    toolbar->addWidget(addressBar);
+    
+    connect(addressBar, &QLineEdit::returnPressed, this, &RibbonBar::onAddressBarEntered);
 
     mainLayout->addWidget(tabWidget);
     mainLayout->addWidget(toolbar);
     setLayout(mainLayout);
+}
+
+void RibbonBar::onAddressBarEntered() {
+    QString path = addressBar->text();
+    emit addressBarNavigated(path);
 }
 
 QWidget *RibbonBar::createFileTab() {
