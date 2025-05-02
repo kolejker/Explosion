@@ -12,6 +12,8 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 set(SOURCES
     main.cpp
     ribbonbar.cpp 
+    fileviewmodel.cpp
+    searchmanager.cpp
 )
 
 add_executable(Explosion ${SOURCES})

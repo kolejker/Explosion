@@ -2,7 +2,6 @@
 #include <QMainWindow>
 #include <QTreeView>
 #include <QListView>
-#include <QFileSystemModel>
 #include <QWheelEvent>
 #include <QSplitter>
 #include <QVBoxLayout>
@@ -23,6 +22,8 @@
 #include <QLineEdit>
 
 #include "ribbonbar.h"
+#include "fileviewmodel.h"
+#include "searchmanager.h"
 
 class Explosion: public QMainWindow {
     Q_OBJECT
@@ -30,16 +31,31 @@ public:
     Explosion(QWidget* parent = nullptr): QMainWindow(parent) {
         setWindowTitle("File Explorer");
         setupUI();
-        setupFileSystem();
         setupQuickAccess();
+        
+        fileViewModel = new FileViewModel(this);
+        fileViewModel->setupFileSystem(contentView);
+        
+        searchManager = new SearchManager(this);
+        
+        connect(searchManager, &SearchManager::searchFilterChanged, 
+                this, &Explosion::onSearchFilterChanged);
+        connect(searchManager, &SearchManager::searchStarted,
+                this, &Explosion::onSearchStarted);
+        connect(searchManager, &SearchManager::searchFinished,
+                this, &Explosion::onSearchFinished);
+        connect(searchManager, &SearchManager::searchCleared,
+                this, &Explosion::onSearchCleared);
+        
+        connect(contentView, &QListView::doubleClicked, this, &Explosion::onItemActivated);
+        
         currentPath = QDir::homePath();
-        updateAddressBar(currentPath);
+        navigateToPath(currentPath);
     }
 
 private:
     QTreeView* navigationTree;
     QListView* contentView;
-    QFileSystemModel* fileModel;
     QStandardItemModel* quickAccessModel;
     QTreeView* quickAccessTree;
     QStack<QString> backStack;
@@ -47,6 +63,12 @@ private:
     QString currentPath;
     RibbonBar* ribbon;
     QLineEdit* addressBar;
+    QMenu* historyMenu;  
+    
+    FileViewModel* fileViewModel;
+    SearchManager* searchManager;
+    
+    void updateHistoryMenu();
 
     void setupUI() {
         QWidget* centralWidget = new QWidget(this);
@@ -55,8 +77,10 @@ private:
 
         ribbon = new RibbonBar(this);
         addressBar = ribbon->getAddressBar();
+        QLineEdit* searchBar = ribbon->getSearchBar();
         connect(ribbon, &RibbonBar::addressBarNavigated, this, &Explosion::addressBarNavigateRequested);
-        
+        connect(ribbon, &RibbonBar::searchRequested, this, &Explosion::performSearch);
+
         mainLayout->addWidget(ribbon);
 
         QSplitter* splitter = new QSplitter(Qt::Horizontal);
@@ -95,11 +119,11 @@ private:
             QAction* backAction = navToolBar->actions()[0];
             QAction* forwardAction = navToolBar->actions()[1];
             QAction* upAction = navToolBar->actions()[2];
-            
+
             connect(backAction, &QAction::triggered, this, &Explosion::navigateBack);
             connect(forwardAction, &QAction::triggered, this, &Explosion::navigateForward);
             connect(upAction, &QAction::triggered, this, &Explosion::navigateUp);
-            
+
             backAction->setEnabled(false);
             forwardAction->setEnabled(false);
         }
@@ -125,7 +149,7 @@ private:
 
         for (const auto& folder: commonFolders) {
             addQuickAccessItem(quickAccess, folder.first, folder.second,
-                style()->standardIcon(QStyle::SP_DirIcon));
+                               style()->standardIcon(QStyle::SP_DirIcon));
         }
         rootItem->appendRow(quickAccess);
 
@@ -134,14 +158,14 @@ private:
 
         for (const auto& folder: commonFolders) {
             addQuickAccessItem(thisPC, folder.first, folder.second,
-                style()->standardIcon(QStyle::SP_DirIcon));
+                               style()->standardIcon(QStyle::SP_DirIcon));
         }
 
         for (const QStorageInfo& storage: QStorageInfo::mountedVolumes()) {
             if (storage.isValid() && storage.isReady()) {
                 QString name = QString("Local Disk (%1)").arg(storage.rootPath());
                 addQuickAccessItem(thisPC, name, storage.rootPath(),
-                    style()->standardIcon(QStyle::SP_DriveHDIcon));
+                                   style()->standardIcon(QStyle::SP_DriveHDIcon));
             }
         }
 
@@ -155,32 +179,25 @@ private:
         quickAccessTree->expandAll();
 
         connect(quickAccessTree->selectionModel(), &QItemSelectionModel::selectionChanged,
-            this, &Explosion::onNavigationSelection);
+                this, &Explosion::onNavigationSelection);
     }
 
     void addQuickAccessItem(QStandardItem* parent,
-        const QString& name,
-        const QString& path,
-        const QIcon& icon) {
+                            const QString& name,
+                            const QString& path,
+                            const QIcon& icon) {
         QStandardItem* item = new QStandardItem(icon, name);
         item->setData(path, Qt::UserRole + 1);
         parent->appendRow(item);
     }
 
-    void setupFileSystem() {
-        fileModel = new QFileSystemModel(this);
-        fileModel->setRootPath(QDir::homePath());
-        fileModel->setFilter(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files);
-
-        connect(contentView, &QListView::doubleClicked, this, &Explosion::onItemActivated);
-
-        contentView->setModel(fileModel);
-        contentView->setRootIndex(fileModel->index(QDir::homePath()));
-    }
-
     void updateAddressBar(const QString& path) {
         if (addressBar) {
-            addressBar->setText(path);
+            if (searchManager->isSearchActive()) {
+                addressBar->setText(QString("Search results for \"%1\" in %2").arg(searchManager->lastQuery()).arg(path));
+            } else {
+                addressBar->setText(path);
+            }
         }
     }
 
@@ -193,10 +210,16 @@ private:
         }
         
         currentPath = path;
-        contentView->setRootIndex(fileModel->setRootPath(path));
+        fileViewModel->setRootPath(path);
+        searchManager->setBaseDirectory(path);
+        
+        if (searchManager->isSearchActive()) {
+            searchManager->clearSearch();
+        }
+        
         statusBar()->showMessage("Location: " + path);
         updateAddressBar(path);
-
+        
         QToolBar* navToolBar = findChild<QToolBar*>();
         if (navToolBar) {
             navToolBar->actions()[0]->setEnabled(!backStack.isEmpty());
@@ -235,8 +258,36 @@ private slots:
         navigateToPath(path);
     }
 
-    void onNavigationSelection(const QItemSelection& selected,
-        const QItemSelection&) {
+    void performSearch(const QString& searchText) {
+        searchManager->quickSearch(searchText);
+    }
+    
+    void onSearchFilterChanged(const QStringList& filters, bool hideNonMatching) {
+        fileViewModel->applySearchFilter(filters, hideNonMatching);
+        updateAddressBar(currentPath);
+    }
+    
+    void onSearchStarted() {
+        statusBar()->showMessage("Searching...");
+    }
+    
+    void onSearchFinished(int resultCount) {
+        if (resultCount >= 0) {
+            statusBar()->showMessage(QString("Found %1 results for \"%2\"")
+                .arg(resultCount)
+                .arg(searchManager->lastQuery()));
+        } else {
+            statusBar()->showMessage(QString("Searching for \"%1\" in %2")
+                .arg(searchManager->lastQuery())
+                .arg(currentPath));
+        }
+    }
+    
+    void onSearchCleared() {
+        statusBar()->showMessage("Search cleared");
+    }
+    
+    void onNavigationSelection(const QItemSelection& selected, const QItemSelection&) {
         if (selected.indexes().isEmpty())
             return;
 
@@ -253,8 +304,8 @@ private slots:
 
     void onItemActivated(const QModelIndex& index) {
         if (!index.isValid()) return;
-        
-        QFileInfo fileInfo = fileModel->fileInfo(index);
+
+        QFileInfo fileInfo = fileViewModel->model()->fileInfo(index);
         if (fileInfo.isDir()) {
             navigateToPath(fileInfo.absoluteFilePath());
         } else {
