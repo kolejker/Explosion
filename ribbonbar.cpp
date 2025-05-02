@@ -7,7 +7,8 @@
 #include <QApplication>
 #include <QMenu>
 
-RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
+RibbonBar::RibbonBar(QWidget *parent) : QWidget(parent)
+{
     setFixedHeight(155);
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -21,47 +22,81 @@ RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
 
     QToolBar *toolbar = new QToolBar("Navigation");
     toolbar->setMovable(false);
+    toolbar->setStyleSheet("QToolBar { padding-top: -3px; spacing: 0px; padding-left: 4px; }");
+
+
     
-    QAction* backAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowBack), "Back");
-    QAction* forwardAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), "Forward");
-    
+    QAction *backAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowBack), "Back");
+    QToolButton *backButton = qobject_cast<QToolButton *>(toolbar->widgetForAction(backAction));
+    if (backButton)
+    {
+        backButton->setFixedWidth(30); 
+    }
+
+    QAction *forwardAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), "Forward");
+    QToolButton *forwardButton = qobject_cast<QToolButton *>(toolbar->widgetForAction(forwardAction));
+    if (forwardButton)
+    {
+        forwardButton->setFixedWidth(30); 
+    }
+
     recentFoldersAction = new QAction(style()->standardIcon(QStyle::SP_ArrowDown), "Recent Folders", this);
     recentFoldersMenu = new QMenu(this);
     recentFoldersAction->setMenu(recentFoldersMenu);
-    
-    QToolButton* recentFoldersButton = new QToolButton();
+
+    QToolButton *recentFoldersButton = new QToolButton();
     recentFoldersButton->setIcon(style()->standardIcon(QStyle::SP_ArrowDown));
     recentFoldersButton->setToolTip("Recent Folders");
-    recentFoldersButton->setFixedWidth(20);  
+    recentFoldersButton->setFixedWidth(20); 
     recentFoldersButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     recentFoldersButton->setMenu(recentFoldersMenu);
     recentFoldersButton->setPopupMode(QToolButton::InstantPopup);
     toolbar->addWidget(recentFoldersButton);
-    
-    
-    QAction* upAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), "Up");
 
-    QWidget* addressSearchContainer = new QWidget();
-    QHBoxLayout* addressSearchLayout = new QHBoxLayout(addressSearchContainer);
+    QAction *upAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), "Up");
+    QToolButton *upButton = qobject_cast<QToolButton *>(toolbar->widgetForAction(upAction));
+    if (upButton)
+    {
+        upButton->setFixedWidth(24); 
+    }
+
+    QWidget *spacer = new QWidget();
+    spacer->setFixedWidth(1);
+    toolbar->addWidget(spacer);
+
+    QWidget *addressSearchContainer = new QWidget();
+    QHBoxLayout *addressSearchLayout = new QHBoxLayout(addressSearchContainer);
     addressSearchLayout->setContentsMargins(0, 0, 0, 0);
-    addressSearchLayout->setSpacing(5);
 
     addressBar = new QLineEdit();
-    addressBar->setMinimumWidth(300);
+    addressBar->setMinimumWidth(226);
     addressBar->setClearButtonEnabled(true);
     addressBar->setPlaceholderText("Address");
 
     searchBar = new QLineEdit();
-    searchBar->setMinimumWidth(150);
+    searchBar->setMinimumWidth(200);
     searchBar->setMaximumWidth(200);
     searchBar->setClearButtonEnabled(true);
     searchBar->setPlaceholderText("Search");
 
-    QAction* searchAction = new QAction(style()->standardIcon(QStyle::SP_FileDialogContentsView), "", this);
+    QString lineEditStyle = R"(
+        QLineEdit {
+            height: 18px;
+            border-radius: 0px;
+            border: 1px solid gray;
+        }
+    )";
+
+    addressBar->setStyleSheet(lineEditStyle);
+    searchBar->setStyleSheet(lineEditStyle);
+
+    QAction *searchAction = new QAction(style()->standardIcon(QStyle::SP_FileDialogContentsView), "", this);
     searchBar->addAction(searchAction, QLineEdit::LeadingPosition);
 
-    addressSearchLayout->addWidget(addressBar, 7);
-    addressSearchLayout->addWidget(searchBar, 3);
+    addressSearchLayout->addWidget(addressBar);
+    addressSearchLayout->addSpacing(12);
+    addressSearchLayout->addWidget(searchBar);
+    addressSearchLayout->addSpacing(12);
 
     toolbar->addWidget(addressSearchContainer);
 
@@ -99,10 +134,8 @@ RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
         }
 
         )");
-        
-        
-        tabWidget->setCurrentIndex(1); 
 
+    tabWidget->setCurrentIndex(1);
 
     connect(addressBar, &QLineEdit::returnPressed, this, &RibbonBar::onAddressBarEntered);
     connect(searchBar, &QLineEdit::returnPressed, this, &RibbonBar::onSearchBarEntered);
@@ -112,29 +145,35 @@ RibbonBar::RibbonBar(QWidget *parent): QWidget(parent) {
     setLayout(mainLayout);
 }
 
-void RibbonBar::onAddressBarEntered() {
+void RibbonBar::onAddressBarEntered()
+{
     QString path = addressBar->text();
     emit addressBarNavigated(path);
 }
 
-void RibbonBar::onSearchBarEntered() {
+void RibbonBar::onSearchBarEntered()
+{
     QString searchText = searchBar->text();
     emit searchRequested(searchText);
 }
 
-void RibbonBar::updateRecentFolders(const QString& path) {
-    if (!recentFolders.contains(path)) {
+void RibbonBar::updateRecentFolders(const QString &path)
+{
+    if (!recentFolders.contains(path))
+    {
         recentFolders.prepend(path);
-        
-        while (recentFolders.size() > 10) {
+
+        while (recentFolders.size() > 10)
+        {
             recentFolders.removeLast();
         }
-        
+
         recentFoldersMenu->clear();
-        
-        for (const QString& folder : recentFolders) {
+
+        for (const QString &folder : recentFolders)
+        {
             QFileInfo fileInfo(folder);
-            QAction* action = recentFoldersMenu->addAction(fileInfo.fileName());
+            QAction *action = recentFoldersMenu->addAction(fileInfo.fileName());
             action->setData(folder);
             action->setToolTip(folder);
             connect(action, &QAction::triggered, this, &RibbonBar::onRecentFolderSelected);
@@ -142,15 +181,18 @@ void RibbonBar::updateRecentFolders(const QString& path) {
     }
 }
 
-void RibbonBar::onRecentFolderSelected() {
-    QAction* action = qobject_cast<QAction*>(sender());
-    if (action) {
+void RibbonBar::onRecentFolderSelected()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (action)
+    {
         QString path = action->data().toString();
         emit recentFolderNavigated(path);
     }
 }
 
-QWidget *RibbonBar::createFileTab() {
+QWidget *RibbonBar::createFileTab()
+{
     QWidget *tab = new QWidget;
     QVBoxLayout *layout = new QVBoxLayout(tab);
 
@@ -162,7 +204,8 @@ QWidget *RibbonBar::createFileTab() {
     return tab;
 }
 
-QWidget *RibbonBar::createHomeTab() {
+QWidget *RibbonBar::createHomeTab()
+{
     QWidget *tab = new QWidget;
     QVBoxLayout *layout = new QVBoxLayout(tab);
 
@@ -174,7 +217,8 @@ QWidget *RibbonBar::createHomeTab() {
     return tab;
 }
 
-QWidget *RibbonBar::createShareTab() {
+QWidget *RibbonBar::createShareTab()
+{
     QWidget *tab = new QWidget;
     QVBoxLayout *layout = new QVBoxLayout(tab);
 
@@ -186,8 +230,8 @@ QWidget *RibbonBar::createShareTab() {
     return tab;
 }
 
-
-QWidget *RibbonBar::createViewTab() {
+QWidget *RibbonBar::createViewTab()
+{
     QWidget *tab = new QWidget;
     QVBoxLayout *layout = new QVBoxLayout(tab);
 
