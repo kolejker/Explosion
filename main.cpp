@@ -20,6 +20,7 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QLineEdit>
+#include <QStandardPaths>
 
 #include "ribbonbar.h"
 #include "fileviewmodel.h"
@@ -138,17 +139,17 @@ private:
         QStandardItem* quickAccess = new QStandardItem("Quick access");
         quickAccess->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
 
-        QList<QPair<QString, QString>> commonFolders = {
-            {"Desktop", QDir::homePath() + "/Desktop"},
-            {"Downloads", QDir::homePath() + "/Downloads"},
-            {"Documents", QDir::homePath() + "/Documents"},
-            {"Pictures", QDir::homePath() + "/Pictures"},
-            {"Music", QDir::homePath() + "/Music"},
-            {"Videos", QDir::homePath() + "/Videos"}
+        QList<QString> commonFolders = {
+            QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+            QStandardPaths::writableLocation(QStandardPaths::DownloadLocation),
+            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
+            QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
+            QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
+            QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)
         };
 
         for (const auto& folder: commonFolders) {
-            addQuickAccessItem(quickAccess, folder.first, folder.second,
+            addQuickAccessItem(quickAccess, QDir(folder).dirName(), folder,
                                style()->standardIcon(QStyle::SP_DirIcon));
         }
         rootItem->appendRow(quickAccess);
@@ -157,7 +158,7 @@ private:
         thisPC->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
 
         for (const auto& folder: commonFolders) {
-            addQuickAccessItem(thisPC, folder.first, folder.second,
+            addQuickAccessItem(thisPC, QDir(folder).dirName(), folder,
                                style()->standardIcon(QStyle::SP_DirIcon));
         }
 
