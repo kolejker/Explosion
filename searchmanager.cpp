@@ -160,19 +160,31 @@ bool SearchManager::fileContainsText(const QString& filePath, const QString& tex
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return false;
-    
+        
     QTextStream in(&file);
-    QString content = in.readAll();
-    file.close();
+    const int CHUNK_SIZE = 8192; 
+    QString chunk;
+    
+    Qt::CaseSensitivity cs = searchCriteria.caseSensitive ? 
+                             Qt::CaseSensitive : Qt::CaseInsensitive;
     
     if (searchCriteria.useRegex) {
         QRegularExpression regex(
             text,
-            searchCriteria.caseSensitive ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption
+            searchCriteria.caseSensitive ? 
+            QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption
         );
-        return regex.match(content).hasMatch();
+        
+        while (!(chunk = in.read(CHUNK_SIZE)).isEmpty()) {
+            if (regex.match(chunk).hasMatch())
+                return true;
+        }
     } else {
-        Qt::CaseSensitivity cs = searchCriteria.caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
-        return content.contains(text, cs);
+        while (!(chunk = in.read(CHUNK_SIZE)).isEmpty()) {
+            if (chunk.contains(text, cs))
+                return true;
+        }
     }
+    
+    return false;
 }

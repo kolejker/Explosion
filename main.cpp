@@ -20,7 +20,6 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QLineEdit>
-#include <QStandardPaths>
 
 #include "ribbonbar.h"
 #include "fileviewmodel.h"
@@ -50,6 +49,8 @@ public:
         
         connect(contentView, &QListView::doubleClicked, this, &Explosion::onItemActivated);
         
+        connect(ribbon, &RibbonBar::recentFolderNavigated, this, &Explosion::onRecentFolderSelected);
+        
         currentPath = QDir::homePath();
         navigateToPath(currentPath);
     }
@@ -64,13 +65,10 @@ private:
     QString currentPath;
     RibbonBar* ribbon;
     QLineEdit* addressBar;
-    QMenu* historyMenu;  
     
     FileViewModel* fileViewModel;
     SearchManager* searchManager;
     
-    void updateHistoryMenu();
-
     void setupUI() {
         QWidget* centralWidget = new QWidget(this);
         QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -119,7 +117,7 @@ private:
         if (navToolBar) {
             QAction* backAction = navToolBar->actions()[0];
             QAction* forwardAction = navToolBar->actions()[1];
-            QAction* upAction = navToolBar->actions()[2];
+            QAction* upAction = navToolBar->actions()[3]; 
 
             connect(backAction, &QAction::triggered, this, &Explosion::navigateBack);
             connect(forwardAction, &QAction::triggered, this, &Explosion::navigateForward);
@@ -139,17 +137,17 @@ private:
         QStandardItem* quickAccess = new QStandardItem("Quick access");
         quickAccess->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
 
-        QList<QString> commonFolders = {
-            QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
-            QStandardPaths::writableLocation(QStandardPaths::DownloadLocation),
-            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation),
-            QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
-            QStandardPaths::writableLocation(QStandardPaths::MusicLocation),
-            QStandardPaths::writableLocation(QStandardPaths::MoviesLocation)
+        QList<QPair<QString, QString>> commonFolders = {
+            {"Desktop", QDir::homePath() + "/Desktop"},
+            {"Downloads", QDir::homePath() + "/Downloads"},
+            {"Documents", QDir::homePath() + "/Documents"},
+            {"Pictures", QDir::homePath() + "/Pictures"},
+            {"Music", QDir::homePath() + "/Music"},
+            {"Videos", QDir::homePath() + "/Videos"}
         };
 
         for (const auto& folder: commonFolders) {
-            addQuickAccessItem(quickAccess, QDir(folder).dirName(), folder,
+            addQuickAccessItem(quickAccess, folder.first, folder.second,
                                style()->standardIcon(QStyle::SP_DirIcon));
         }
         rootItem->appendRow(quickAccess);
@@ -158,7 +156,7 @@ private:
         thisPC->setIcon(style()->standardIcon(QStyle::SP_ComputerIcon));
 
         for (const auto& folder: commonFolders) {
-            addQuickAccessItem(thisPC, QDir(folder).dirName(), folder,
+            addQuickAccessItem(thisPC, folder.first, folder.second,
                                style()->standardIcon(QStyle::SP_DirIcon));
         }
 
@@ -218,6 +216,8 @@ private:
             searchManager->clearSearch();
         }
         
+        ribbon->updateRecentFolders(path);
+        
         statusBar()->showMessage("Location: " + path);
         updateAddressBar(path);
         
@@ -225,7 +225,7 @@ private:
         if (navToolBar) {
             navToolBar->actions()[0]->setEnabled(!backStack.isEmpty());
             navToolBar->actions()[1]->setEnabled(!forwardStack.isEmpty());
-            navToolBar->actions()[2]->setEnabled(QDir(path).cdUp());
+            navToolBar->actions()[3]->setEnabled(QDir(path).cdUp());
         }
     }
 
@@ -256,6 +256,10 @@ private:
 
 private slots:
     void addressBarNavigateRequested(const QString& path) {
+        navigateToPath(path);
+    }
+    
+    void onRecentFolderSelected(const QString& path) {
         navigateToPath(path);
     }
 
