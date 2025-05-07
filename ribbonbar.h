@@ -6,20 +6,15 @@
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QLineEdit>
-#include <QComboBox>
-#include <QPushButton>
-#include <QAction>
-#include <QDialog>
-#include <QDateEdit>
-#include <QCheckBox>
 #include <QMenu>
 #include <QToolButton>
 #include <QStringList>
-#include <QActionGroup>
-#include <QLabel>
+#include <QAction>
 #include "fileviewmodel.h"
-
-class AdvancedSearchDialog;
+#include "tabs/filetab.h"
+#include "tabs/hometab.h"
+#include "tabs/sharetab.h"
+#include "tabs/viewtab.h"
 
 class RibbonBar : public QWidget {
     Q_OBJECT
@@ -30,15 +25,17 @@ public:
     void updateRecentFolders(const QString& path);
 
 private:
-    QWidget *createFileTab();
-    QWidget *createHomeTab();
-    QWidget *createShareTab();
-    QWidget *createViewTab();
+    QTabWidget *tabWidget;
     QLineEdit* addressBar;
     QLineEdit* searchBar;
     QAction* recentFoldersAction;
     QMenu* recentFoldersMenu;
     QStringList recentFolders;
+    
+    FileTab* fileTab;
+    HomeTab* homeTab;
+    ShareTab* shareTab;
+    ViewTab* viewTab;
 
 signals:
     void addressBarNavigated(const QString& path);

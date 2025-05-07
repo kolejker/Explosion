@@ -14,6 +14,10 @@ set(SOURCES
     ribbonbar.cpp 
     fileviewmodel.cpp
     searchmanager.cpp
+    tabs/filetab.cpp
+    tabs/hometab.cpp
+    tabs/sharetab.cpp
+    tabs/viewtab.cpp
 )
 
 add_executable(Explosion ${SOURCES})

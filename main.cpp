@@ -20,10 +20,15 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QLineEdit>
+#include <QStackedWidget>
 
 #include "ribbonbar.h"
 #include "fileviewmodel.h"
 #include "searchmanager.h"
+#include "tabs/filetab.h"
+#include "tabs/hometab.h"
+#include "tabs/sharetab.h"
+#include "tabs/viewtab.h"
 
 class Explosion: public QMainWindow {
     Q_OBJECT
