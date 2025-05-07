@@ -15,6 +15,8 @@
 #include <QMenu>
 #include <QToolButton>
 #include <QStringList>
+#include <QActionGroup>
+#include <QLabel>
 #include "fileviewmodel.h"
 
 class AdvancedSearchDialog;
@@ -42,6 +44,7 @@ signals:
     void addressBarNavigated(const QString& path);
     void searchRequested(const QString& searchText);
     void recentFolderNavigated(const QString& path);
+    void viewModeChanged(ViewMode mode);
 
 private slots:
     void onAddressBarEntered();

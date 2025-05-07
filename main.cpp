@@ -24,7 +24,6 @@
 #include "ribbonbar.h"
 #include "fileviewmodel.h"
 #include "searchmanager.h"
-
 class Explosion: public QMainWindow {
     Q_OBJECT
 public:
@@ -34,7 +33,7 @@ public:
         setupQuickAccess();
         
         fileViewModel = new FileViewModel(this);
-        fileViewModel->setupFileSystem(contentView);
+        fileViewModel->setupFileSystem(viewContainer);
         
         searchManager = new SearchManager(this);
         
@@ -47,9 +46,14 @@ public:
         connect(searchManager, &SearchManager::searchCleared,
                 this, &Explosion::onSearchCleared);
         
-        connect(contentView, &QListView::doubleClicked, this, &Explosion::onItemActivated);
+        connect(fileViewModel, &FileViewModel::itemActivated, 
+                this, &Explosion::onItemActivated);
         
         connect(ribbon, &RibbonBar::recentFolderNavigated, this, &Explosion::onRecentFolderSelected);
+        
+        connect(ribbon, &RibbonBar::addressBarNavigated, this, &Explosion::addressBarNavigateRequested);
+        connect(ribbon, &RibbonBar::searchRequested, this, &Explosion::performSearch);
+        connect(ribbon, &RibbonBar::viewModeChanged, this, &Explosion::onViewModeChanged);
         
         currentPath = QDir::homePath();
         navigateToPath(currentPath);
@@ -57,7 +61,7 @@ public:
 
 private:
     QTreeView* navigationTree;
-    QListView* contentView;
+    QStackedWidget* viewContainer;  
     QStandardItemModel* quickAccessModel;
     QTreeView* quickAccessTree;
     QStack<QString> backStack;
@@ -94,16 +98,10 @@ private:
         quickAccessTree->setEditTriggers(QTreeView::NoEditTriggers);
         leftLayout->addWidget(quickAccessTree);
 
-        contentView = new QListView;
-        contentView->setViewMode(QListView::IconMode);
-        contentView->setIconSize(QSize(32, 32));
-        contentView->setGridSize(QSize(100, 80));
-        contentView->setSpacing(10);
-        contentView->setResizeMode(QListView::Adjust);
-        contentView->setWrapping(true);
+        viewContainer = new QStackedWidget();
 
         splitter->addWidget(leftPanel);
-        splitter->addWidget(contentView);
+        splitter->addWidget(viewContainer);
         splitter->setStretchFactor(1, 2);
 
         QList<int> sizes;
@@ -315,6 +313,12 @@ private slots:
             navigateToPath(fileInfo.absoluteFilePath());
         } else {
             openFile(fileInfo.absoluteFilePath());
+        }
+    }
+
+    void onViewModeChanged(ViewMode mode) {
+        if (fileViewModel) {
+            fileViewModel->setViewMode(mode);
         }
     }
 };
