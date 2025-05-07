@@ -51,6 +51,21 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };
 
+class ResizableStackedWidget : public QStackedWidget {
+    Q_OBJECT
+public:
+    explicit ResizableStackedWidget(QWidget* parent = nullptr) : QStackedWidget(parent) {}
+
+signals:
+    void resized();
+
+protected:
+    void resizeEvent(QResizeEvent* event) override {
+        QStackedWidget::resizeEvent(event);
+        emit resized();
+    }
+};
+
 class FileViewModel : public QObject {
     Q_OBJECT
 public:
@@ -73,6 +88,8 @@ public:
     
     void clearFilters();
 
+    void onContainerResized();
+
 signals:
     void itemActivated(const QModelIndex& index);
 
@@ -80,6 +97,19 @@ private slots:
     void onItemDoubleClicked(const QModelIndex& index);
 
 private:
+
+  struct ColumnSizeConstraints {
+        int minWidth;
+        int maxWidth;
+        int defaultWidth;
+    };
+    
+    QMap<int, ColumnSizeConstraints> columnConstraints;
+    
+    void initializeColumnConstraints();
+    void enforceColumnConstraints(int logicalIndex, int newSize);
+    void redistributeColumnSpace();
+    void ensureColumnsWithinView();
     QFileSystemModel* fileModel;
     QStackedWidget* viewContainer;
     QListView* iconView;
@@ -90,13 +120,15 @@ private:
     QString rootPath;
     ViewMode currentMode;
     
+    void onDetailsSectionResized(int logicalIndex, int oldSize, int newSize);
+    void adjustDetailsColumnsToFit();
     void configureIconView();
     void configureListView();
     void configureDetailsView();
     void configureTilesView();
     void configureContentView();
     void updateCurrentViewRoot();
-    
+
 };
 
 #endif

@@ -1,6 +1,7 @@
 #include "fileviewmodel.h"
 #include <QHeaderView>
 #include <QDateTime>
+#include <QTimer>
 
 FileViewModel::FileViewModel(QObject* parent)
     : QObject(parent), fileModel(nullptr), viewContainer(nullptr), 
@@ -26,6 +27,8 @@ void FileViewModel::setupFileSystem(QStackedWidget* container) {
     detailsView = new QTableView(viewContainer);
     tilesView = new QListView(viewContainer);
     contentView = new QListView(viewContainer);
+    
+    detailsView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
     configureIconView();
     configureListView();
@@ -124,24 +127,152 @@ void FileViewModel::configureListView() {
     connect(listView, &QListView::doubleClicked, this, &FileViewModel::onItemDoubleClicked);
 }
 
+    void FileViewModel::initializeColumnConstraints() {
 
-void FileViewModel::configureDetailsView() {
-    detailsView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    detailsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    detailsView->setSortingEnabled(true);
-    detailsView->verticalHeader()->setVisible(false);
-    
-    for (int i = 1; i < fileModel->columnCount(); ++i) {
-        detailsView->setColumnWidth(i, 120);  
+        columnConstraints[0] = {150, 600, 250};  
+        columnConstraints[1] = {80, 200, 100};
+        columnConstraints[2] = {80, 200, 100};  
+        columnConstraints[3] = {120, 300, 150}; 
     }
     
-    detailsView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    void FileViewModel::configureDetailsView() {
+        detailsView->setSelectionBehavior(QAbstractItemView::SelectRows);
+        detailsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+        detailsView->setSortingEnabled(true);
+        detailsView->verticalHeader()->setVisible(false);
+        
+        initializeColumnConstraints();
+        
+        detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        
+        detailsView->horizontalHeader()->setStretchLastSection(false);
+        
+        for (int i = 0; i < 4; ++i) {
+            if (columnConstraints.contains(i)) {
+                detailsView->horizontalHeader()->setMinimumSectionSize(columnConstraints[i].minWidth);
+            }
+        }
+        
+        detailsView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        
+        connect(detailsView->horizontalHeader(), &QHeaderView::sectionResized,
+                this, &FileViewModel::onDetailsSectionResized);
+        
+        detailsView->verticalHeader()->setDefaultSectionSize(24);
+        
+        connect(detailsView, &QTableView::doubleClicked, this, &FileViewModel::onItemDoubleClicked);
+        
+        QTimer::singleShot(200, this, &FileViewModel::redistributeColumnSpace);
+    }
     
-    detailsView->verticalHeader()->setDefaultSectionSize(24);
+    void FileViewModel::onDetailsSectionResized(int logicalIndex, int oldSize, int newSize) {
+        static bool inProgress = false;
+        if (inProgress || !detailsView) return;
+        
+        inProgress = true;
+        
+        if (columnConstraints.contains(logicalIndex)) {
+            const ColumnSizeConstraints& constraints = columnConstraints[logicalIndex];
+            int constrainedSize = qBound(constraints.minWidth, newSize, constraints.maxWidth);
+            
+            if (constrainedSize != newSize) {
+                detailsView->setColumnWidth(logicalIndex, constrainedSize);
+                newSize = constrainedSize;
+            }
+        }
+        
+        int totalWidth = detailsView->viewport()->width();
+        int fixedColumnsWidth = 0;
+        int columnsCount = qMin(4, detailsView->model() ? detailsView->model()->columnCount() : 4);
+        
+        for (int i = 1; i < columnsCount; ++i) {
+            if (i != logicalIndex) {
+                fixedColumnsWidth += detailsView->columnWidth(i);
+            } else {
+                fixedColumnsWidth += newSize;
+            }
+        }
+        
+        if (logicalIndex == 0) {
+            int nameColumnWidth = newSize;
+            int totalNeededWidth = nameColumnWidth + fixedColumnsWidth;
+            
+            if (totalNeededWidth > totalWidth) {
+                detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            } else {
+                detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            }
+        }
+        else {
+            int nameColumnWidth = totalWidth - fixedColumnsWidth;
+            
+            if (columnConstraints.contains(0)) {
+                nameColumnWidth = qBound(columnConstraints[0].minWidth, 
+                                        nameColumnWidth, 
+                                        columnConstraints[0].maxWidth);
+            }
+            
+            if (nameColumnWidth < (columnConstraints.contains(0) ? columnConstraints[0].minWidth : 100)) {
+                detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            } else {
+                detailsView->setColumnWidth(0, nameColumnWidth);
+                detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            }
+        }
+        
+        inProgress = false;
+    }
     
-    connect(detailsView, &QTableView::doubleClicked, this, &FileViewModel::onItemDoubleClicked);
-}
-
+    void FileViewModel::redistributeColumnSpace() {
+        if (!detailsView || !detailsView->model()) return;
+        
+        static bool isRedistributing = false;
+        if (isRedistributing) return;
+        
+        isRedistributing = true;
+        
+        int totalWidth = detailsView->viewport()->width();
+        int columnsCount = qMin(4, detailsView->model()->columnCount());
+        
+        if (columnsCount == 0) {
+            isRedistributing = false;
+            return;
+        }
+        
+        int fixedColumnsWidth = 0;
+        for (int i = 1; i < columnsCount; ++i) {
+            if (columnConstraints.contains(i)) {
+                int defaultWidth = columnConstraints[i].defaultWidth;
+                detailsView->setColumnWidth(i, defaultWidth);
+                fixedColumnsWidth += defaultWidth;
+            }
+        }
+        
+        int nameColumnWidth = totalWidth - fixedColumnsWidth;
+        
+        if (columnConstraints.contains(0)) {
+            nameColumnWidth = qBound(columnConstraints[0].minWidth, 
+                                    nameColumnWidth, 
+                                    columnConstraints[0].maxWidth);
+        }
+        
+        detailsView->setColumnWidth(0, nameColumnWidth);
+        
+        int totalNeededWidth = nameColumnWidth + fixedColumnsWidth;
+        if (totalNeededWidth > totalWidth) {
+            detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        } else {
+            detailsView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        }
+        
+        isRedistributing = false;
+    }
+    
+    void FileViewModel::onContainerResized() {
+        if (currentMode == ViewMode::Details && detailsView) {
+            QTimer::singleShot(10, this, &FileViewModel::redistributeColumnSpace);
+        }
+    }
 void FileViewModel::configureTilesView() {
     tilesView->setViewMode(QListView::ListMode);
     tilesView->setIconSize(QSize(32, 32));

@@ -24,6 +24,7 @@
 #include "ribbonbar.h"
 #include "fileviewmodel.h"
 #include "searchmanager.h"
+
 class Explosion: public QMainWindow {
     Q_OBJECT
 public:
@@ -98,7 +99,7 @@ private:
         quickAccessTree->setEditTriggers(QTreeView::NoEditTriggers);
         leftLayout->addWidget(quickAccessTree);
 
-        viewContainer = new QStackedWidget();
+        viewContainer = new ResizableStackedWidget();
 
         splitter->addWidget(leftPanel);
         splitter->addWidget(viewContainer);
@@ -124,6 +125,12 @@ private:
             backAction->setEnabled(false);
             forwardAction->setEnabled(false);
         }
+
+        connect(static_cast<ResizableStackedWidget*>(viewContainer), &ResizableStackedWidget::resized,
+        this, [this]() {
+            if (fileViewModel)
+                fileViewModel->onContainerResized();
+        });
 
         resize(1024, 768);
     }
@@ -197,6 +204,8 @@ private:
             }
         }
     }
+
+    
 
     void navigateToPath(const QString& path, bool addToHistory = true) {
         if (!QFileInfo::exists(path)) return;
